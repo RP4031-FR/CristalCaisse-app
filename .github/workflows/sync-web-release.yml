@@ -180,7 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release view "$TAG" --repo RP4031-FR/CristalCaisse-app --json assets --jq '.assets[].name' | tee /tmp/assets.txt
-          grep -Eiq '\\.exe$' /tmp/assets.txt
-          grep -Eiq '\\.dmg$' /tmp/assets.txt
-          grep -Eiq '\\.AppImage$' /tmp/assets.txt
-          grep -Eiq '\\.deb$' /tmp/assets.txt
+          grep -Eiq '\.exe$' /tmp/assets.txt
+          grep -Eiq '\.dmg$' /tmp/assets.txt
+          grep -Eiq '\.AppImage$' /tmp/assets.txt
+          grep -Eiq '\.deb$' /tmp/assets.txt
