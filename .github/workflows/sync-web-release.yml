@@ -16,10 +16,10 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      should_build: \${{ steps.sync.outputs.should_build }}
-      version: \${{ steps.sync.outputs.version }}
-      tag: \${{ steps.sync.outputs.tag }}
-      commit: \${{ steps.sync.outputs.commit }}
+      should_build: ${{ steps.sync.outputs.should_build }}
+      version: ${{ steps.sync.outputs.version }}
+      tag: ${{ steps.sync.outputs.tag }}
+      commit: ${{ steps.sync.outputs.commit }}
     steps:
       - name: Récupérer le dépôt de l'application
         uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
       - name: Détecter et importer la dernière Release web publiée
         id: sync
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           RELEASE="$(curl -fsSL \
@@ -38,8 +38,8 @@ jobs:
             https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)"
 
           TAG="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<< "$RELEASE")"
-          VERSION="\${TAG#v}"
-          if [[ ! "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+          VERSION="${TAG#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Tag de version invalide : $TAG (format attendu : vX.Y.Z)"
             exit 1
           fi
@@ -52,7 +52,7 @@ jobs:
           fi
 
           CURRENT="$(node -p "require('./desktop/package.json').version")"
-          if [[ "$(printf '%s\\n' "$CURRENT" "$VERSION" | sort -V | tail -n1)" == "$CURRENT" ]]; then
+          if [[ "$(printf '%s\n' "$CURRENT" "$VERSION" | sort -V | tail -n1)" == "$CURRENT" ]]; then
             echo "::notice::La version $VERSION n'est pas plus récente que $CURRENT."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -68,7 +68,7 @@ jobs:
           const file = '/tmp/CristalCaisse.html';
           let html = fs.readFileSync(file, 'utf8');
           const version = process.env.VERSION;
-          const updated = html.replace(/(const\\s+CURRENT_VERSION\\s*=\\s*)['"][^'"]+['"]/, (_, prefix) => prefix + "'" + version + "'");
+          const updated = html.replace(/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/, (_, prefix) => prefix + "'" + version + "'");
           if (updated === html) throw new Error('Impossible de mettre à jour CURRENT_VERSION');
           fs.writeFileSync(file, updated);
           NODE
@@ -80,7 +80,7 @@ jobs:
           const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
           pkg.version = process.env.VERSION;
           pkg.build.publish = { provider: 'github', owner: 'RP4031-FR', repo: 'CristalCaisse-app' };
-          fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\\n');
+          fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
           NODE
 
           git config user.name "github-actions[bot]"
@@ -108,11 +108,11 @@ jobs:
             args: --mac --x64 --arm64
           - os: ubuntu-latest
             args: --linux
-    runs-on: \${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \${{ needs.prepare.outputs.commit }}
+          ref: ${{ needs.prepare.outputs.commit }}
 
       - uses: actions/setup-node@v4
         with:
@@ -126,14 +126,14 @@ jobs:
 
       - name: Compiler sans publier
         working-directory: desktop
-        run: npx electron-builder \${{ matrix.args }} --publish never
+        run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Déposer les fichiers compilés
         uses: actions/upload-artifact@v4
         with:
-          name: builds-\${{ matrix.os }}
+          name: builds-${{ matrix.os }}
           path: desktop/dist/*
           if-no-files-found: error
           retention-days: 2
@@ -151,9 +151,9 @@ jobs:
 
       - name: Publier une seule Release dans CristalCaisse-app
         env:
-          GH_TOKEN: \${{ github.token }}
-          TAG: \${{ needs.prepare.outputs.tag }}
-          VERSION: \${{ needs.prepare.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
           test -n "$(find dist -maxdepth 1 -type f -print -quit)"
