@@ -21,79 +21,83 @@ jobs:
       tag: ${{ steps.sync.outputs.tag }}
       commit: ${{ steps.sync.outputs.commit }}
     steps:
-      - name: Récupérer le dépôt de l'application
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Détecter et importer la dernière Release web publiée
+      - name: Récupérer et préparer la dernière Release web
         id: sync
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if ! RELEASE="$(curl -fsSL \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)"; then
-            echo "::notice::Aucune Release publiée trouvée sur CristalCaisse-web."
+          RELEASE="$(curl -fsSL https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)" || {
+            echo "::notice::Aucune Release web publiée."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
-          fi
-
+          }
           TAG="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<< "$RELEASE")"
-          VERSION="${TAG#v}"
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag de version invalide : $TAG (format attendu : vX.Y.Z)"
+          RAW="${TAG#v}"
+          if [[ ! "$RAW" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+            echo "::error::Tag invalide : $TAG. Formats acceptés : vX.Y ou vX.Y.Z"
+            exit 1
+          fi
+          MAJOR_MINOR="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[4]:-0}"
+
+          export MAJOR_MINOR
+          ASSET_URL="$(python3 -c 'import json,sys,os; d=json.load(sys.stdin); a={x["name"]:x["browser_download_url"] for x in d.get("assets",[])}; print(a.get("CristalCaisse.html") or a.get("CristalCaisse."+os.environ["MAJOR_MINOR"]+".html") or "")' <<< "$RELEASE")"
+          if [[ -z "$ASSET_URL" ]]; then
+            echo "::error::Asset HTML absent de la Release $TAG (attendu : CristalCaisse.html ou CristalCaisse.$MAJOR_MINOR.html)."
             exit 1
           fi
 
-          ASSET_URL="$(python3 -c 'import json,sys; d=json.load(sys.stdin); a=[x for x in d.get("assets",[]) if x["name"]=="CristalCaisse.html"]; print(a[0]["browser_download_url"] if a else "")' <<< "$RELEASE")"
-          if [[ -z "$ASSET_URL" ]]; then
-            echo "::notice::La Release source $TAG ne contient pas l'asset CristalCaisse.html. Rien à publier."
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           CURRENT="$(node -p "require('./desktop/package.json').version")"
-          if [[ "$(printf '%s\n' "$CURRENT" "$VERSION" | sort -V | tail -n1)" == "$CURRENT" ]]; then
-            echo "::notice::La version $VERSION n'est pas plus récente que $CURRENT."
+          if ! VERSION="$VERSION" CURRENT="$CURRENT" node -e '
+            const p=s=>s.split(".").map(Number), a=p(process.env.VERSION), b=p(process.env.CURRENT);
+            for(let i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))process.exit((a[i]||0)>(b[i]||0)?0:1)}
+          '; then
+            echo "::notice::La version source $VERSION est antérieure à $CURRENT."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           curl -fsSL "$ASSET_URL" -o /tmp/CristalCaisse.html
-          if ! grep -q "CURRENT_VERSION" /tmp/CristalCaisse.html; then
-            echo "::error::La constante CURRENT_VERSION est introuvable dans le HTML source."
-            exit 1
-          fi
           VERSION="$VERSION" node <<'NODE'
-          const fs = require('fs');
-          const file = '/tmp/CristalCaisse.html';
-          let html = fs.readFileSync(file, 'utf8');
-          const version = process.env.VERSION;
-          const updated = html.replace(/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/, (_, prefix) => prefix + "'" + version + "'");
-          if (updated === html) throw new Error('Impossible de mettre à jour CURRENT_VERSION');
-          fs.writeFileSync(file, updated);
+          const fs=require('fs'), v=process.env.VERSION;
+          const f='/tmp/CristalCaisse.html';
+          let html=fs.readFileSync(f,'utf8');
+          const next=html.replace(/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/,(_,p)=>p+"'"+v+"'");
+          if(next===html) throw new Error("CURRENT_VERSION introuvable ou non modifiable");
+          fs.writeFileSync(f,next);
+          const p='desktop/package.json', pkg=JSON.parse(fs.readFileSync(p,'utf8'));
+          pkg.version=v; pkg.build.publish={provider:'github',owner:'RP4031-FR',repo:'CristalCaisse-app'};
+          fs.writeFileSync(p,JSON.stringify(pkg,null,2)+'\n');
+          const l='desktop/package-lock.json';
+          if(fs.existsSync(l)){const lock=JSON.parse(fs.readFileSync(l,'utf8'));lock.version=v;if(lock.packages?.[''])lock.packages[''].version=v;fs.writeFileSync(l,JSON.stringify(lock,null,2)+'\n');}
           NODE
-
           cp /tmp/CristalCaisse.html desktop/index.html
-          VERSION="$VERSION" node <<'NODE'
-          const fs = require('fs');
-          const file = 'desktop/package.json';
-          const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
-          pkg.version = process.env.VERSION;
-          pkg.build.publish = { provider: 'github', owner: 'RP4031-FR', repo: 'CristalCaisse-app' };
-          fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
-          NODE
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add desktop/index.html desktop/package.json
-          git commit -m "Synchroniser CristalCaisse $VERSION depuis le dépôt web"
-          git push
+          git add desktop/index.html desktop/package.json desktop/package-lock.json
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Synchroniser CristalCaisse $VERSION depuis le dépôt web"
+            git push
+          fi
           COMMIT="$(git rev-parse HEAD)"
 
+          # Recompiler si la Release n'existe pas encore ou si ses installateurs sont incomplets,
+          # même lorsque package.json porte déjà cette version.
+          EXISTING="$(gh api "repos/RP4031-FR/CristalCaisse-app/releases/tags/v$VERSION" 2>/dev/null || true)"
+          if [[ -n "$EXISTING" ]]; then
+            COMPLETE="$(python3 -c 'import json,sys; n=[x["name"].lower() for x in json.load(sys.stdin).get("assets",[])]; ok=[any(x.endswith(".exe") for x in n),any(x.endswith(".dmg") for x in n),any(x.endswith(".appimage") for x in n),any(x.endswith(".deb") for x in n)]; print(str(all(ok)).lower())' <<< "$EXISTING")"
+            if [[ "$COMPLETE" == "true" ]]; then
+              echo "::notice::La Release v$VERSION possède déjà tous ses installateurs."
+              echo "should_build=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::La Release v$VERSION est incomplète : nouvelle compilation."
+          fi
           echo "should_build=true" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
@@ -117,23 +121,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.prepare.outputs.commit }}
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
-
       - name: Installer les dépendances
         working-directory: desktop
-        run: npm install
-
+        run: npm ci
       - name: Compiler sans publier
         working-directory: desktop
         run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
       - name: Déposer les fichiers compilés
         uses: actions/upload-artifact@v4
         with:
@@ -152,16 +152,35 @@ jobs:
           pattern: builds-*
           path: dist
           merge-multiple: true
-
-      - name: Publier une seule Release dans CristalCaisse-app
+      - name: Vérifier les installateurs avant publication
+        run: |
+          set -euo pipefail
+          find dist -maxdepth 1 -type f -print
+          shopt -s nocaseglob
+          compgen -G "dist/*.exe" >/dev/null
+          compgen -G "dist/*.dmg" >/dev/null
+          compgen -G "dist/*.AppImage" >/dev/null
+          compgen -G "dist/*.deb" >/dev/null
+      - name: Créer ou compléter la Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
-          test -n "$(find dist -maxdepth 1 -type f -print -quit)"
-          gh release create "$TAG" dist/* \
-            --repo RP4031-FR/CristalCaisse-app \
-            --title "CristalCaisse $VERSION" \
-            --notes "Version $VERSION de CristalCaisse. Cette version est synchronisée automatiquement depuis la Release publiée sur CristalCaisse-web."
+          if gh release view "$TAG" --repo RP4031-FR/CristalCaisse-app >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo RP4031-FR/CristalCaisse-app --clobber
+          else
+            gh release create "$TAG" dist/* --repo RP4031-FR/CristalCaisse-app --title "CristalCaisse $VERSION" --notes "Version $VERSION synchronisée depuis CristalCaisse-web."
+          fi
+      - name: Vérifier les fichiers publiés
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo RP4031-FR/CristalCaisse-app --json assets --jq '.assets[].name' | tee /tmp/assets.txt
+          grep -Eiq '\\.exe$' /tmp/assets.txt
+          grep -Eiq '\\.dmg$' /tmp/assets.txt
+          grep -Eiq '\\.AppImage$' /tmp/assets.txt
+          grep -Eiq '\\.deb$' /tmp/assets.txt
