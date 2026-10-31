@@ -172,10 +172,17 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
+          # Ne transmettre à gh release que les fichiers : dist/* inclut aussi
+          # les dossiers linux-unpacked / mac et fait échouer l'upload.
+          mapfile -d '' FILES < <(find dist -maxdepth 1 -type f -print0)
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "::error::Aucun fichier compilé à publier."
+            exit 1
+          fi
           if gh release view "$TAG" --repo RP4031-FR/CristalCaisse-app >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --repo RP4031-FR/CristalCaisse-app --clobber
+            gh release upload "$TAG" "${FILES[@]}" --repo RP4031-FR/CristalCaisse-app --clobber
           else
-            gh release create "$TAG" dist/* --repo RP4031-FR/CristalCaisse-app --title "CristalCaisse $VERSION" --notes "Version $VERSION synchronisée depuis CristalCaisse-web."
+            gh release create "$TAG" "${FILES[@]}" --repo RP4031-FR/CristalCaisse-app --title "CristalCaisse $VERSION" --notes "Version $VERSION synchronisée depuis CristalCaisse-web."
           fi
       - name: Vérifier les fichiers publiés
         env:
