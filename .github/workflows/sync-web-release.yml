@@ -1,6 +1,10 @@
 name: Synchroniser les Releases web et publier les applications
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-web-release.yml"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
