@@ -44,7 +44,7 @@
     "publish": {
       "provider": "github",
       "owner": "RP4031-FR",
-      "repo": "CristalCaisse-web"
+      "repo": "CristalCaisse-app"
     }
   },
   "devDependencies": {
