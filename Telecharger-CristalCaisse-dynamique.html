@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Télécharger CristalCaisse</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#10151d;color:#f3f6fb}
+main{max-width:900px;margin:0 auto;padding:36px 18px}
+h1{margin:0 0 8px;font-size:clamp(1.8rem,4vw,2.4rem)}
+.intro{color:#c3ccda;line-height:1.6;margin-top:0}
+.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0}
+.toolbar label{font-weight:650}
+select,button{font:inherit;border:1px solid #46566d;border-radius:9px;padding:10px 12px;background:#1b2431;color:#fff}
+button{cursor:pointer;background:#303d50}
+button:hover,a:hover{filter:brightness(1.12)}
+.status{padding:12px 14px;border-radius:10px;background:#1b2431;color:#c3ccda;line-height:1.5;margin:16px 0}
+.status.error{border:1px solid #a94444;color:#ffd0d0}
+.status.success{border:1px solid #397c5a;color:#d4ffe5}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+article{background:#1b2431;border:1px solid #344255;border-radius:16px;padding:20px;min-width:0}
+h2{margin:0 0 8px}
+p{color:#c3ccda;line-height:1.5}
+.download{display:block;color:#fff;background:#2463eb;text-decoration:none;padding:12px 14px;border-radius:9px;margin-top:10px;font-weight:650;text-align:center}
+.download.secondary{background:#303d50}
+.download.disabled{background:#303744;color:#9ca8b8;pointer-events:none}
+small{display:block;color:#bac5d4;margin-top:14px;line-height:1.5}
+footer{margin-top:26px;color:#c3ccda;line-height:1.6}
+footer a{color:#9bbcff}
+.hidden{display:none}
+@media(max-width:520px){main{padding:26px 14px}.toolbar{align-items:stretch}.toolbar select{width:100%}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Télécharger CristalCaisse</h1>
+  <p class="intro">Choisissez votre système. Cette page récupère automatiquement les versions et les installateurs publiés sur GitHub.</p>
+
+  <div class="toolbar">
+    <label for="version">Version :</label>
+    <select id="version" disabled>
+      <option>Chargement des versions…</option>
+    </select>
+    <button id="refresh" type="button">Actualiser</button>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite">Connexion à GitHub…</div>
+
+  <div class="cards">
+    <article>
+      <h2>Windows</h2>
+      <p>Pour Windows 10/11 en 64 bits.</p>
+      <a id="windows" class="download disabled" aria-disabled="true">Recherche du fichier…</a>
+      <small id="windows-info">Installateur Windows (.exe).</small>
+    </article>
+
+    <article>
+      <h2>macOS</h2>
+      <p>Choisissez selon le processeur de votre Mac.</p>
+      <a id="mac-arm" class="download disabled" aria-disabled="true">Apple Silicon (M1/M2/M3/M4) — recherche…</a>
+      <a id="mac-intel" class="download secondary disabled" aria-disabled="true">Mac Intel — recherche…</a>
+      <small>Ouvrez le fichier .dmg puis suivez les instructions affichées.</small>
+    </article>
+
+    <article>
+      <h2>Linux</h2>
+      <p>Choisissez le format adapté à votre distribution.</p>
+      <a id="linux-deb" class="download disabled" aria-disabled="true">Debian / Ubuntu / Linux Mint (.deb)</a>
+      <a id="linux-appimage" class="download secondary disabled" aria-disabled="true">Autres distributions (.AppImage)</a>
+      <small>Le paquet .deb et l’AppImage sont destinés aux systèmes amd64/x86_64, sauf indication contraire dans le nom du fichier.</small>
+    </article>
+  </div>
+
+  <footer>
+    <span id="release-label">Aucune version sélectionnée.</span><br>
+    <a id="release-link" href="https://github.com/RP4031-FR/CristalCaisse-app/releases" target="_blank" rel="noopener">Voir les Releases et les notes sur GitHub</a>
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const OWNER = "RP4031-FR";
+  const REPO = "CristalCaisse-app";
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=100`;
+
+  const $ = (id) => document.getElementById(id);
+  const versionSelect = $("version");
+  const statusBox = $("status");
+  let releases = [];
+
+  function setStatus(message, type = "") {
+    statusBox.textContent = message;
+    statusBox.className = `status ${type}`.trim();
+  }
+
+  function setLink(id, asset, label) {
+    const link = $(id);
+    if (asset) {
+      link.href = asset.browser_download_url;
+      link.textContent = label;
+      link.classList.remove("disabled");
+      link.removeAttribute("aria-disabled");
+      link.target = "_blank";
+      link.rel = "noopener";
+    } else {
+      link.removeAttribute("href");
+      link.textContent = `${label} — indisponible pour cette version`;
+      link.classList.add("disabled");
+      link.setAttribute("aria-disabled", "true");
+      link.removeAttribute("target");
+    }
+  }
+
+  function findAsset(assets, predicate) {
+    return assets.find(asset => predicate(asset.name.toLowerCase())) || null;
+  }
+
+  function updateDownloads(release) {
+    const assets = release.assets || [];
+
+    // On ignore les fichiers annexes (.blockmap, fichiers YAML, archives de debug).
+    const windows = findAsset(assets, name =>
+      name.endsWith(".exe") && !name.endsWith(".exe.blockmap")
+    );
+
+    const macDmg = assets.filter(asset => asset.name.toLowerCase().endsWith(".dmg"));
+    const macArm = macDmg.find(asset => /arm64|aarch64|apple.?silicon/.test(asset.name.toLowerCase())) || null;
+    const macIntel = macDmg.find(asset =>
+      !/arm64|aarch64|apple.?silicon/.test(asset.name.toLowerCase())
+    ) || null;
+
+    const deb = findAsset(assets, name =>
+      name.endsWith(".deb") && !name.endsWith(".blockmap")
+    );
+    const appImage = findAsset(assets, name =>
+      name.endsWith(".appimage") && !name.endsWith(".blockmap")
+    );
+
+    setLink("windows", windows, "Télécharger pour Windows (.exe)");
+    setLink("mac-arm", macArm, "Mac Apple Silicon (M1/M2/M3/M4)");
+    setLink("mac-intel", macIntel, "Mac Intel");
+    setLink("linux-deb", deb, "Debian / Ubuntu / Linux Mint (.deb)");
+    setLink("linux-appimage", appImage, "Autres distributions (.AppImage)");
+
+    const available = [windows, macArm, macIntel, deb, appImage].filter(Boolean).length;
+    const total = 5;
+    setStatus(
+      `${available}/${total} installateurs détectés pour ${release.tag_name}. Les boutons sans fichier correspondant restent désactivés.`,
+      available === total ? "success" : ""
+    );
+
+    $("release-label").textContent = `Version sélectionnée : ${release.name || release.tag_name}`;
+    $("release-link").href = release.html_url;
+    $("release-link").textContent = "Voir cette version et ses notes sur GitHub";
+  }
+
+  async function loadReleases() {
+    versionSelect.disabled = true;
+    $("refresh").disabled = true;
+    setStatus("Récupération des Releases GitHub…");
+
+    try {
+      const response = await fetch(API, {
+        headers: { "Accept": "application/vnd.github+json" },
+        cache: "no-store"
+      });
+      if (!response.ok) {
+        throw new Error(response.status === 403
+          ? "GitHub limite temporairement les requêtes. Réessayez dans quelques instants."
+          : `GitHub a répondu avec l’erreur HTTP ${response.status}.`);
+      }
+
+      const data = await response.json();
+      releases = data
+        .filter(release => !release.draft && !release.prerelease)
+        .sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
+
+      if (!releases.length) {
+        throw new Error("Aucune Release publiée n’a été trouvée dans le dépôt.");
+      }
+
+      versionSelect.replaceChildren();
+      for (const release of releases) {
+        const option = document.createElement("option");
+        option.value = release.id;
+        option.textContent = `${release.name || release.tag_name}${release.id === releases[0].id ? " (la plus récente)" : ""}`;
+        versionSelect.appendChild(option);
+      }
+
+      versionSelect.disabled = false;
+      updateDownloads(releases[0]);
+    } catch (error) {
+      setStatus(`Impossible de charger les versions : ${error.message}`, "error");
+      $("release-label").textContent = "Les informations de version ne sont pas disponibles.";
+      $("release-link").href = `https://github.com/${OWNER}/${REPO}/releases`;
+      $("release-link").textContent = "Ouvrir les Releases sur GitHub";
+      ["windows", "mac-arm", "mac-intel", "linux-deb", "linux-appimage"].forEach(id =>
+        setLink(id, null, "Téléchargement")
+      );
+    } finally {
+      $("refresh").disabled = false;
+    }
+  }
+
+  versionSelect.addEventListener("change", () => {
+    const selected = releases.find(release => String(release.id) === versionSelect.value);
+    if (selected) updateDownloads(selected);
+  });
+
+  $("refresh").addEventListener("click", loadReleases);
+  loadReleases();
+})();
+</script>
+</body>
+</html>
