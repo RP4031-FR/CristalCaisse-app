@@ -16,7 +16,7 @@ CristalCaisse est désormais proposé pour les plateformes suivantes :
 |---|---|
 | 🪟 Windows | ✅ Disponible |
 | 🍎 macOS | 🚀 Version à tester |
-| 🐧 Linux | 🚀 Version à tester |
+| 🐧 Linux | ✅ Disponible  (juste le .deb pour l'instant) |
 
 *La disponibilité et la compatibilité peuvent varier selon les versions et les configurations.*
 
