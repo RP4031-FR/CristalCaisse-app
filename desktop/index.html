@@ -80,6 +80,16 @@ label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;
 .form-group{margin-bottom:16px}
 .auth-err{background:rgba(224,82,82,.12);border:1px solid var(--danger);border-radius:var(--r);padding:8px 12px;color:var(--danger);font-size:11px;margin-bottom:16px}
 .auth-footer{margin-top:20px;padding-top:20px;border-top:1px solid var(--border);text-align:center;font-size:10px;color:var(--text3)}
+.onboarding-units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.onboarding-option{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg3);font-size:11px;cursor:pointer}
+.onboarding-option input{width:auto;accent-color:var(--accent)}
+.onboarding-help{font-size:10px;color:var(--text2);line-height:1.5}
+.quantity-result{font-size:14px;font-weight:700;text-align:center}
+.quantity-result small{display:block;color:var(--text2);font-size:11px;font-weight:400;margin-top:4px}
+.welcome-content{text-align:center;padding:12px 4px}
+.welcome-title{font-family:var(--display);font-size:28px;font-weight:900;line-height:1.2}
+.welcome-version{font-size:13px;color:var(--accent);margin-top:5px}
+.welcome-message{font-size:12px;color:var(--text2);line-height:1.7;margin-top:18px}
 
 /* TOP BAR */
 #app{width:100vw;height:100vh;display:flex;flex-direction:column;overflow:hidden}
@@ -829,8 +839,72 @@ label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;
       </div>
     </div>
 
-    <div class="auth-footer">CristalCaisse v4.2 · Données 100% locales</div>
+    <div class="auth-footer">CristalCaisse v4.3 · Données 100% locales</div>
     <div class="auth-footer">Open Source is love ❤️</div>
+  </div>
+</div>
+
+<!-- FIRST SIGN-IN SETUP -->
+<div id="modal-onboarding" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Personnalisons votre caisse</span>
+    </div>
+    <div class="modal-body">
+      <div>
+        <label for="onboarding-profession">Quel est votre métier ? *</label>
+        <input id="onboarding-profession" type="text" list="profession-options" placeholder="Choisissez ou saisissez votre métier">
+        <datalist id="profession-options">
+          <option value="Alimentation générale"><option value="Boulangerie"><option value="Pâtisserie">
+          <option value="Boucherie"><option value="Charcuterie"><option value="Poissonnerie">
+          <option value="Primeur"><option value="Fromagerie"><option value="Épicerie">
+          <option value="Caviste"><option value="Traiteur"><option value="Restaurant">
+          <option value="Café / bar"><option value="Snack / restauration rapide"><option value="Food truck">
+          <option value="Marché / vente ambulante"><option value="Prêt-à-porter"><option value="Chaussures">
+          <option value="Bijouterie"><option value="Fleuriste"><option value="Coiffure">
+          <option value="Esthétique / beauté"><option value="Parfumerie / cosmétique"><option value="Librairie / papeterie">
+          <option value="Bricolage / quincaillerie"><option value="Décoration / maison"><option value="Électronique">
+          <option value="Informatique / téléphonie"><option value="Pharmacie / parapharmacie"><option value="Animalerie">
+          <option value="Sport / loisirs"><option value="Garage / automobile"><option value="Artisanat">
+          <option value="Bâtiment / artisan"><option value="Prestations de services"><option value="Autre">
+        </datalist>
+      </div>
+      <div>
+        <div class="bold" style="font-size:12px;margin-bottom:4px">Souhaitez-vous ajouter des unités de vente ?</div>
+        <div class="onboarding-help">Vous pourrez ensuite choisir une unité pour chaque produit (par exemple un prix au kilo ou au mètre).</div>
+      </div>
+      <div class="onboarding-units">
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="kg">Poids (kg)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="g">Poids (g)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="m">Longueur (m)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="cm">Longueur (cm)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="L">Volume (L)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="ml">Volume (ml)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="m²">Surface (m²)</label>
+        <label class="onboarding-option"><input type="checkbox" name="onboarding-unit" value="h">Durée (heure)</label>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="onboarding-option"><input id="onboarding-custom-unit-enabled" type="checkbox" onchange="toggleCustomUnit()">Ajouter une autre unité</label>
+        <input id="onboarding-custom-unit" class="hidden" type="text" maxlength="12" placeholder="Ex. bouteille, séance, paire">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="primary" onclick="completeOnboarding()">Terminer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIRST WELCOME -->
+<div id="modal-welcome" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-body welcome-content">
+      <div id="welcome-title" class="welcome-title"></div>
+      <div class="welcome-version">sur CristalCaisse <span id="welcome-version"></span></div>
+      <p class="welcome-message">Merci d’utiliser CristalCaisse ! Votre caisse est prête : ajoutez vos produits et commencez à encaisser en toute simplicité.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center">
+      <button class="primary" onclick="finishWelcome()">C’est parti !</button>
+    </div>
   </div>
 </div>
 
@@ -1127,12 +1201,35 @@ label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;
       <div class="form-group"><label>Nom *</label><input id="prod-name" type="text" placeholder="ex: Café Expresso"></div>
       <div class="form-group"><label>Code barre (optionnel)</label><input id="prod-barcode" type="text" placeholder="ex: 3057640123456" oninput="this.value=this.value.replace(/\s+/g,'')"></div>
       <div class="form-group"><label>Prix (€) *</label><input id="prod-price" type="number" min="0" step="0.01" placeholder="ex: 1.50"></div>
+      <div class="form-group"><label>Unité de vente</label><select id="prod-unit"></select></div>
       <div class="form-group"><label>Catégorie</label><input id="prod-category" type="text" list="cat-dl"><datalist id="cat-dl"></datalist></div>
       <div class="form-group"><label>Stock (vide = illimité)</label><input id="prod-stock" type="number" min="0"></div>
     </div>
     <div class="modal-footer">
       <button onclick="closeModal('modal-product')">Annuler</button>
       <button class="primary" onclick="saveProduct()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT QUANTITY -->
+<div id="modal-quantity" class="modal-overlay hidden">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title" id="quantity-title">Ajouter au panier</span>
+      <button class="modal-close" onclick="closeModal('modal-quantity')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" id="quantity-instructions"></div>
+      <div class="form-group" style="margin:0">
+        <label id="quantity-label" for="quantity-input">Quantité</label>
+        <input id="quantity-input" type="number" min="0.001" step="any" placeholder="Saisir une quantité" oninput="updateQuantityPreview()" onkeydown="if(event.key==='Enter')confirmAddToCart()">
+      </div>
+      <div id="quantity-preview" class="info-box quantity-result">Saisissez une quantité pour calculer le total.</div>
+    </div>
+    <div class="modal-footer">
+      <button onclick="closeModal('modal-quantity')">Annuler</button>
+      <button class="primary" id="quantity-add-btn" onclick="confirmAddToCart()" disabled>Ajouter au panier</button>
     </div>
   </div>
 </div>
@@ -1508,6 +1605,8 @@ label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;
 let U = null; // currentUser
 let cart = [];
 let editingProductId = null;
+let quantityProductId = null;
+const APP_VERSION = '4.2.0';
 let selectedPM = null;
 let payLoyCustomer = null;
 let gcPayCard = null;
@@ -1589,6 +1688,42 @@ function switchAuthTab(tab) {
 }
 function showAuthErr(msg) { const el = document.getElementById('auth-error'); el.textContent = msg; el.classList.remove('hidden'); }
 
+function toggleCustomUnit() {
+  const enabled = document.getElementById('onboarding-custom-unit-enabled').checked;
+  const input = document.getElementById('onboarding-custom-unit');
+  input.classList.toggle('hidden', !enabled);
+  if (enabled) input.focus();
+}
+
+function completeOnboarding() {
+  const profession = document.getElementById('onboarding-profession').value.trim();
+  const customEnabled = document.getElementById('onboarding-custom-unit-enabled').checked;
+  const customUnit = document.getElementById('onboarding-custom-unit').value.trim();
+  if (!profession) { toast('Veuillez indiquer votre métier', 'error'); document.getElementById('onboarding-profession').focus(); return; }
+  if (customEnabled && !customUnit) { toast('Veuillez préciser votre autre unité', 'error'); document.getElementById('onboarding-custom-unit').focus(); return; }
+
+  const units = [...document.querySelectorAll('input[name="onboarding-unit"]:checked')].map(input => input.value);
+  if (customEnabled && !units.includes(customUnit)) units.push(customUnit);
+  U.profession = profession;
+  U.extraUnits = units;
+  U.onboardingCompleted = true;
+  saveU();
+  document.getElementById('modal-onboarding').classList.add('hidden');
+  showWelcomeModal();
+}
+
+function showWelcomeModal() {
+  document.getElementById('welcome-title').textContent = `Bienvenue, ${U.username} !`;
+  document.getElementById('welcome-version').textContent = `v${APP_VERSION}`;
+  document.getElementById('modal-welcome').classList.remove('hidden');
+}
+
+function finishWelcome() {
+  U.welcomeShown = true;
+  saveU();
+  document.getElementById('modal-welcome').classList.add('hidden');
+}
+
 async function login() {
   const user = document.getElementById('login-user').value.trim();
   const pass = document.getElementById('login-pass').value;
@@ -1617,7 +1752,8 @@ async function register() {
       { id: 'p1', name: 'Article exemple', price: 5.00, category: 'Général', emoji: '🛍', stock: null, barcode: null },
       { id: 'p2', name: 'Café', price: 1.50, category: 'Boissons', emoji: '☕', stock: null, barcode: null },
     ],
-    transactions: [], giftCards: [], loyaltyCustomers: [], nextTicket: 1
+    transactions: [], giftCards: [], loyaltyCustomers: [], nextTicket: 1,
+    welcomeShown: false
   };
   all.push(acc); SA(all); startSession(acc);
 }
@@ -1633,7 +1769,14 @@ function startSession(acc) {
   document.getElementById('app').classList.remove('hidden');
   if (acc.bw) document.body.classList.add('bw');
   updateTopbar(); loadSettings(); showView('pos'); renderProducts();
-  toast('Bienvenue, ' + acc.username + ' !', 'success');
+  if (!U.onboardingCompleted) {
+    document.getElementById('onboarding-profession').value = U.profession || '';
+    document.getElementById('modal-onboarding').classList.remove('hidden');
+  } else if (!U.welcomeShown) {
+    showWelcomeModal();
+  } else {
+    toast('Bienvenue, ' + acc.username + ' !', 'success');
+  }
 }
 
 function logout() {
@@ -1698,7 +1841,7 @@ function renderProducts(filter = '', cat = 'Tous') {
       <div class="p-emoji">${p.emoji||'🛍'}</div>
       <div class="p-name">${esc(p.name)}</div>
       ${p.category ? `<div class="p-cat">${esc(p.category)}</div>` : ''}
-      <div class="p-price">${fp(p.price)}</div>
+      <div class="p-price">${fp(p.price)}${p.unit && p.unit !== 'unité' ? ` / ${esc(p.unit)}` : ''}</div>
       ${p.stock != null ? `<div class="small dim">Stock: ${p.stock}</div>` : ''}
       ${p.barcode ? `<div class="p-barcode">🏷 ${esc(p.barcode)}</div>` : ''}
     </div>`).join('');
@@ -1712,16 +1855,27 @@ function openAddProduct(id = null) {
   if (id) { const p = U.products.find(x => x.id === id); if (p) sel = p.emoji || '🛍'; }
   document.getElementById('emoji-picker').innerHTML = EMOJIS.map(e => `<div class="emoji-opt${e===sel?' selected':''}" onclick="selectEmoji('${e}',this)">${e}</div>`).join('');
   document.getElementById('prod-emoji').value = sel;
+  const unitSelect = document.getElementById('prod-unit');
+  const units = ['unité', ...(U.extraUnits || [])];
+  if (id) {
+    const product = U.products.find(x => x.id === id);
+    if (product?.unit && !units.includes(product.unit)) units.push(product.unit);
+  }
+  unitSelect.innerHTML = [...new Set(units)].map(unit => `<option value="${esc(unit)}">${esc(unit)}</option>`).join('');
   if (id) {
     const p = U.products.find(x => x.id === id);
     if (p) {
       document.getElementById('prod-name').value=p.name;
       document.getElementById('prod-barcode').value=p.barcode||'';
       document.getElementById('prod-price').value=p.price;
+      unitSelect.value = p.unit || 'unité';
       document.getElementById('prod-category').value=p.category||'';
       document.getElementById('prod-stock').value=p.stock!=null?p.stock:'';
     }
-  } else ['prod-name','prod-barcode','prod-price','prod-category','prod-stock'].forEach(id => document.getElementById(id).value = '');
+  } else {
+    ['prod-name','prod-barcode','prod-price','prod-category','prod-stock'].forEach(id => document.getElementById(id).value = '');
+    unitSelect.value = 'unité';
+  }
   document.getElementById('modal-product').classList.remove('hidden');
 }
 function selectEmoji(e, el) { document.getElementById('prod-emoji').value=e; document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('selected')); el.classList.add('selected'); }
@@ -1731,6 +1885,7 @@ function saveProduct() {
   const barcode = document.getElementById('prod-barcode').value.trim();
   const price = parseFloat(document.getElementById('prod-price').value);
   const cat = document.getElementById('prod-category').value.trim();
+  const unit = document.getElementById('prod-unit').value || 'unité';
   const sv = document.getElementById('prod-stock').value;
   const stock = sv === '' ? null : parseInt(sv);
   const emoji = document.getElementById('prod-emoji').value || '🛍';
@@ -1742,8 +1897,8 @@ function saveProduct() {
   }
   if (editingProductId) {
     const p = U.products.find(x => x.id === editingProductId);
-    if (p) { p.name=name; p.price=price; p.category=cat; p.stock=stock; p.emoji=emoji; p.barcode=barcode||null; }
-  } else U.products.push({ id: 'p'+Date.now(), name, price, category: cat, emoji, stock, barcode: barcode || null });
+    if (p) { p.name=name; p.price=price; p.category=cat; p.unit=unit; p.stock=stock; p.emoji=emoji; p.barcode=barcode||null; }
+  } else U.products.push({ id: 'p'+Date.now(), name, price, category: cat, unit, emoji, stock, barcode: barcode || null });
   saveU(); closeModal('modal-product'); renderProducts();
   toast(editingProductId ? 'Article modifié' : 'Article ajouté', 'success'); editingProductId = null;
 }
@@ -1757,17 +1912,92 @@ function deleteProduct(id) {
 // ═══════════════════════════════════════
 // CART
 // ═══════════════════════════════════════
+function quantityStep(unit) {
+  return ['kg', 'm', 'L', 'm²', 'h'].includes(unit) ? 0.1 : 1;
+}
+function formatQty(qty, unit) {
+  const value = Number(qty).toLocaleString('fr-FR', { maximumFractionDigits: 3 });
+  return unit && unit !== 'unité' ? `${value} ${unit}` : `x${value}`;
+}
 function addToCart(id) {
   const prod = U.products.find(p => p.id === id); if (!prod) return;
+  if (prod.unit && prod.unit !== 'unité') {
+    if (prod.stock != null && prod.stock <= 0) { toast('Stock épuisé', 'error'); return; }
+    openQuantityModal(prod);
+    return;
+  }
+  addProductQuantity(prod, 1);
+}
+function openQuantityModal(prod) {
+  quantityProductId = prod.id;
+  const isKilogram = prod.unit === 'kg';
+  document.getElementById('quantity-title').textContent = prod.name;
+  document.getElementById('quantity-label').textContent = isKilogram ? 'Poids du produit (grammes)' : `Quantité (${prod.unit})`;
+  document.getElementById('quantity-input').value = '';
+  document.getElementById('quantity-input').placeholder = isKilogram ? 'Ex. 350' : `Ex. ${quantityStep(prod.unit)}`;
+  document.getElementById('quantity-input').min = isKilogram ? '1' : '0.001';
+  document.getElementById('quantity-input').step = isKilogram ? '1' : 'any';
+  document.getElementById('quantity-instructions').textContent = isKilogram
+    ? `Prix : ${fp(prod.price)} / kg. Saisissez le poids en grammes (ex. 350 g).`
+    : `Prix : ${fp(prod.price)} / ${prod.unit}. Saisissez la quantité à vendre.`;
+  document.getElementById('modal-quantity').classList.remove('hidden');
+  updateQuantityPreview();
+  setTimeout(() => document.getElementById('quantity-input').focus(), 0);
+}
+function updateQuantityPreview() {
+  const input = document.getElementById('quantity-input');
+  const button = document.getElementById('quantity-add-btn');
+  const preview = document.getElementById('quantity-preview');
+  button.textContent = 'Ajouter au panier';
+  const prod = U?.products.find(p => p.id === quantityProductId);
+  if (!prod) { button.disabled = true; return; }
+  const entered = parseFloat(input.value);
+  if (!Number.isFinite(entered) || entered <= 0) {
+    preview.textContent = 'Saisissez une quantité pour calculer le total.';
+    button.disabled = true;
+    return;
+  }
+  const quantity = prod.unit === 'kg' ? entered / 1000 : entered;
+  const existing = cart.find(i => i.product.id === prod.id)?.qty || 0;
+  if (prod.stock != null && existing + quantity > prod.stock) {
+    preview.textContent = `Stock insuffisant (disponible : ${formatQty(Math.max(0, prod.stock - existing), prod.unit)}).`;
+    button.disabled = true;
+    return;
+  }
+  const displayQuantity = prod.unit === 'kg'
+    ? `${entered.toLocaleString('fr-FR')} g = ${quantity.toLocaleString('fr-FR', { maximumFractionDigits: 3 })} kg`
+    : `${entered.toLocaleString('fr-FR')} ${prod.unit}`;
+  preview.innerHTML = `${esc(displayQuantity)}<small>Total : ${fp(prod.price * quantity)}</small>`;
+  button.textContent = `Ajouter au panier · ${fp(prod.price * quantity)}`;
+  button.disabled = false;
+}
+function confirmAddToCart() {
+  const prod = U?.products.find(p => p.id === quantityProductId);
+  const entered = parseFloat(document.getElementById('quantity-input').value);
+  if (!prod || !Number.isFinite(entered) || entered <= 0) return;
+  const quantity = prod.unit === 'kg' ? entered / 1000 : entered;
+  if (prod.stock != null && (cart.find(i => i.product.id === prod.id)?.qty || 0) + quantity > prod.stock) {
+    toast('Stock insuffisant', 'error');
+    updateQuantityPreview();
+    return;
+  }
+  addProductQuantity(prod, quantity);
+  document.getElementById('modal-quantity').classList.add('hidden');
+  quantityProductId = null;
+}
+function addProductQuantity(prod, quantity) {
   if (prod.stock != null && prod.stock <= 0) { toast('Stock épuisé', 'error'); return; }
-  const ex = cart.find(i => i.product.id === id);
-  if (ex) { if (prod.stock != null && ex.qty >= prod.stock) { toast('Stock insuffisant', 'error'); return; } ex.qty++; }
-  else cart.push({ product: prod, qty: 1 });
+  const ex = cart.find(i => i.product.id === prod.id);
+  if (prod.stock != null && (ex?.qty || 0) + quantity > prod.stock) { toast('Stock insuffisant', 'error'); return; }
+  if (ex) ex.qty += quantity;
+  else cart.push({ product: prod, qty: quantity });
   renderCart();
 }
 function changeQty(id, d) {
   const item = cart.find(i => i.product.id === id); if (!item) return;
-  item.qty += d; if (item.qty <= 0) cart = cart.filter(i => i.product.id !== id);
+  const next = Math.round((item.qty + d * quantityStep(item.product.unit)) * 1000) / 1000;
+  if (item.product.stock != null && next > item.product.stock) { toast('Stock insuffisant', 'error'); return; }
+  item.qty = next; if (item.qty <= 0) cart = cart.filter(i => i.product.id !== id);
   renderCart();
 }
 function clearCart() { cart = []; payLoyCustomer = null; document.getElementById('discount-input').value = ''; document.getElementById('note-input').value = ''; renderCart(); broadcastCart(); }
@@ -1811,14 +2041,17 @@ function renderCart() {
       <div class="cart-item-name">${esc(i.product.name)}</div>
       <div class="qty-ctrl">
         <button class="qty-btn" onclick="changeQty('${i.product.id}',-1)">−</button>
-        <span class="qty-val">${i.qty}</span>
+        <span class="qty-val">${formatQty(i.qty, i.product.unit)}</span>
         <button class="qty-btn" onclick="changeQty('${i.product.id}',1)">+</button>
       </div>
       <div class="cart-item-price">${fp(i.product.price * i.qty)}</div>
     </div>`).join('');
 
   const t = getCartTotals();
-  let rows = `<div class="summary-row"><span>Sous-total (${cart.reduce((s,i)=>s+i.qty,0)} art.)</span><span>${fp(t.subtotal)}</span></div>`;
+  const subtotalLabel = cart.every(i => !i.product.unit || i.product.unit === 'unité')
+    ? `Sous-total (${cart.reduce((s,i)=>s+i.qty,0)} art.)`
+    : 'Sous-total';
+  let rows = `<div class="summary-row"><span>${subtotalLabel}</span><span>${fp(t.subtotal)}</span></div>`;
   if (t.discount > 0) rows += `<div class="summary-row"><span>Remise (${t.discount}%)</span><span>−${fp(t.discountAmt)}</span></div>`;
   rows += `<div class="summary-total"><span>Total</span><span>${fp(t.total)}</span></div>`;
   summary.innerHTML = rows; btn.disabled = false;
@@ -2060,7 +2293,7 @@ function confirmPayment() {
   const ticket = {
     id: 't_' + Date.now(), number: U.nextTicket || 1,
     date: new Date().toISOString(),
-    items: cart.map(i => ({ id: i.product.id, name: i.product.name, price: i.product.price, qty: i.qty, emoji: i.product.emoji })),
+    items: cart.map(i => ({ id: i.product.id, name: i.product.name, price: i.product.price, qty: i.qty, unit: i.product.unit || 'unité', emoji: i.product.emoji })),
     subtotal: t.subtotal, discount: t.discount, discountAmt: t.discountAmt,
     tva: t.tva, tvaAmt: t.tvaAmt, total: t.total,
     note, payment: payDetails, loyaltyCustomerId: payLoyCustomer?.id || null
@@ -2131,7 +2364,7 @@ function getRefundedQtyForItem(ticket, itemId) {
 function buildReceiptHTML(t, ptsEarned = 0) {
   const d = new Date(t.date);
   const ds = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-  const items = t.items.map(i => `<div class="ri"><span class="rn">${esc(i.emoji)} ${esc(i.name)}</span><span class="rq">x${i.qty}</span><span class="rp">${fp(i.price*i.qty)}</span></div>`).join('');
+  const items = t.items.map(i => `<div class="ri"><span class="rn">${esc(i.emoji)} ${esc(i.name)}</span><span class="rq">${formatQty(i.qty, i.unit)}</span><span class="rp">${fp(i.price*i.qty)}</span></div>`).join('');
   let totals = `<div class="rrow"><span>Sous-total</span><span>${fp(t.subtotal)}</span></div>`;
   if (t.discount > 0) totals += `<div class="rrow"><span>Remise ${t.discount}%</span><span>−${fp(t.discountAmt)}</span></div>`;
   totals += `<div class="rrow big"><span>TOTAL</span><span>${fp(t.total)}</span></div>`;
@@ -2241,7 +2474,7 @@ function filterHistory() {
   list.innerHTML = txs.map(t => {
     const d = new Date(t.date);
     const ds = d.toLocaleDateString('fr-FR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' }) + ' · ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-    const items = t.items.map(i => `${i.emoji||''} ${i.name} x${i.qty}`).join(', ');
+    const items = t.items.map(i => `${i.emoji||''} ${i.name} ${formatQty(i.qty, i.unit)}`).join(', ');
     const pm = t.payment?.method || '';
     // Refund entry styling
     if (t.isRefund) {
@@ -2291,7 +2524,7 @@ function viewRefundEntry(id) {
       <div class="receipt-ticket">Ticket original #${String(t.number).padStart(4,'0')}</div>
       <div class="receipt-date">${ds}</div>
     </div>
-    <div class="receipt-items">${t.items.map(i=>`<div class="ri"><span class="rn">${esc(i.emoji)} ${esc(i.name)}</span><span class="rq">x${i.qty}</span><span class="rp">${fp(i.price*i.qty)}</span></div>`).join('')}</div>
+    <div class="receipt-items">${t.items.map(i=>`<div class="ri"><span class="rn">${esc(i.emoji)} ${esc(i.name)}</span><span class="rq">${formatQty(i.qty, i.unit)}</span><span class="rp">${fp(i.price*i.qty)}</span></div>`).join('')}</div>
     <div class="receipt-totals">
       <div class="rrow big" style="color:#e05252"><span>REMBOURSÉ</span><span>${fp(-t.total)}</span></div>
     </div>
@@ -2308,7 +2541,7 @@ function exportCSV() {
   const rows = [['N°','Date','Articles','Sous-total','Remise%','Total','Paiement','Note']];
   U.transactions.forEach(t => rows.push([
     t.number, new Date(t.date).toLocaleString('fr-FR'),
-    t.items.map(i => `${i.name} x${i.qty}`).join(' / '),
+    t.items.map(i => `${i.name} ${formatQty(i.qty, i.unit)}`).join(' / '),
     t.subtotal.toFixed(2), t.discount||0, t.total.toFixed(2),
     payLabel(t.payment?.method||''), t.note||''
   ]));
@@ -2626,7 +2859,11 @@ function exportAllData() {
   if (!U) return;
   const payload = {
     exportDate: new Date().toISOString(),
-    account: { username: U.username, company: U.company, phone: U.phone },
+    account: {
+      username: U.username, company: U.company, phone: U.phone,
+      profession: U.profession || '', extraUnits: U.extraUnits || [],
+      onboardingCompleted: !!U.onboardingCompleted, welcomeShown: !!U.welcomeShown
+    },
     products: U.products,
     transactions: U.transactions,
     giftCards: U.giftCards,
@@ -2679,16 +2916,17 @@ function openRefundModal() {
   list.innerHTML = ticket.items.map(item => {
     const alreadyQty = getRefundedQtyForItem(ticket, item.id);
     const remaining = item.qty - alreadyQty;
+    const unit = item.unit || 'unité';
     if (remaining <= 0) return '';
-    return `<div class="refund-item" id="ri-${item.id}" data-id="${item.id}" data-price="${item.price}" data-max="${remaining}">
+    return `<div class="refund-item" id="ri-${item.id}" data-id="${item.id}" data-price="${item.price}" data-max="${remaining}" data-unit="${esc(unit)}">
       <input type="checkbox" id="chk-${item.id}" onchange="updateRefundItem('${item.id}')" checked>
       <div class="ri-info">
         <div class="ri-name">${esc(item.emoji||'')} ${esc(item.name)}</div>
-        <div class="ri-price">${fp(item.price)} / unité · max ${remaining}</div>
+        <div class="ri-price">${fp(item.price)} / ${esc(unit)} · max ${formatQty(remaining, unit)}</div>
       </div>
       <div class="ri-qty">
         <button onclick="changeRefundQty('${item.id}',-1)" style="width:22px;height:22px;padding:0;font-size:14px">−</button>
-        <input type="number" id="qty-${item.id}" value="${remaining}" min="1" max="${remaining}" style="width:50px;padding:4px 6px;font-size:12px;text-align:center" oninput="calcRefundTotal()">
+        <input type="number" id="qty-${item.id}" value="${remaining}" min="0" max="${remaining}" step="${quantityStep(unit)}" style="width:70px;padding:4px 6px;font-size:12px;text-align:center" oninput="calcRefundTotal()">
         <button onclick="changeRefundQty('${item.id}',1)" style="width:22px;height:22px;padding:0;font-size:14px">+</button>
       </div>
       <strong style="min-width:60px;text-align:right;font-size:12px" id="ri-total-${item.id}">${fp(item.price * remaining)}</strong>
@@ -2709,9 +2947,10 @@ function updateRefundItem(id) {
 function changeRefundQty(id, delta) {
   const inp = document.getElementById('qty-' + id);
   const row = document.getElementById('ri-' + id);
-  const max = parseInt(row.dataset.max);
-  let val = parseInt(inp.value) + delta;
-  val = Math.max(0, Math.min(max, val));
+  const max = parseFloat(row.dataset.max);
+  const step = quantityStep(row.dataset.unit);
+  let val = (parseFloat(inp.value) || 0) + delta * step;
+  val = Math.round(Math.max(0, Math.min(max, val)) * 1000) / 1000;
   inp.value = val;
   if (val === 0) { document.getElementById('chk-' + id).checked = false; row.classList.remove('selected'); }
   else { document.getElementById('chk-' + id).checked = true; row.classList.add('selected'); }
@@ -2727,7 +2966,7 @@ function calcRefundTotal() {
     const qtyInp = document.getElementById('qty-' + item.id);
     const totalEl = document.getElementById('ri-total-' + item.id);
     if (!chk) return;
-    const qty = chk.checked ? (parseInt(qtyInp?.value) || 0) : 0;
+    const qty = chk.checked ? (parseFloat(qtyInp?.value) || 0) : 0;
     const lineTotal = item.price * qty;
     total += lineTotal;
     if (totalEl) totalEl.textContent = fp(lineTotal);
@@ -2751,7 +2990,7 @@ function selectAllRefund(checked) {
     if (!chk) return;
     chk.checked = checked;
     if (checked && qtyInp) {
-      const max = parseInt(row?.dataset.max || 0);
+      const max = parseFloat(row?.dataset.max || 0);
       qtyInp.value = max;
     }
     if (row) row.classList.toggle('selected', checked);
@@ -2789,9 +3028,9 @@ function confirmRefund() {
     const chk = document.getElementById('chk-' + item.id);
     const qtyInp = document.getElementById('qty-' + item.id);
     if (!chk || !chk.checked) return;
-    const qty = parseInt(qtyInp?.value) || 0;
+    const qty = parseFloat(qtyInp?.value) || 0;
     if (qty <= 0) return;
-    refundedItems.push({ id: item.id, name: item.name, emoji: item.emoji||'', qty, price: item.price });
+    refundedItems.push({ id: item.id, name: item.name, emoji: item.emoji||'', qty, price: item.price, unit: item.unit || 'unité' });
     refundTotal += item.price * qty;
   });
 
@@ -2983,6 +3222,10 @@ function confirmImport() {
     loyaltyReward:    importData.loyaltyReward    || 5,
     nextTicket:       importData.nextTicket       || 1,
     products:         importData.products         || [],
+    profession:       importData.profession       || '',
+    extraUnits:       importData.extraUnits       || [],
+    onboardingCompleted: importData.onboardingCompleted || false,
+    welcomeShown:     importData.welcomeShown     || false,
     transactions:     importData.transactions     || [],
     giftCards:        importData.giftCards        || [],
     loyaltyCustomers: importData.loyaltyCustomers || [],
@@ -3045,7 +3288,7 @@ function setNumpadMode(mode) {
   // Préfixe / suffixe
   const prefix = document.getElementById('nd-prefix');
   const suffix = document.getElementById('nd-suffix');
-  if (mode === 'qty')    { prefix.textContent = 'Qté';     suffix.textContent = ''; }
+  if (mode === 'qty')    { prefix.textContent = 'Qté';     suffix.textContent = cart.find(i => i.product.id === npSelectedId)?.product.unit || ''; }
   if (mode === 'remise') { prefix.textContent = 'Remise';  suffix.textContent = '%'; }
   if (mode === 'prix')   { prefix.textContent = 'Prix';    suffix.textContent = '€'; }
   if (mode === 'note')   { prefix.textContent = 'Note';    suffix.textContent = ''; }
@@ -3075,7 +3318,7 @@ function renderNumpadItems() {
     <div class="numpad-cart-item${npSelectedId === i.product.id ? ' active' : ''}" onclick="selectNumpadItem('${i.product.id}')">
       <span style="font-size:15px">${i.product.emoji || '🛍'}</span>
       <span class="nci-name">${esc(i.product.name)}</span>
-      <span class="nci-qty">${npMode === 'prix' ? fp(i.product.price) : 'x' + i.qty}</span>
+      <span class="nci-qty">${npMode === 'prix' ? fp(i.product.price) : formatQty(i.qty, i.product.unit)}</span>
     </div>`).join('');
 }
 
@@ -3102,7 +3345,7 @@ function npKey(k) {
   if (k === 'C')  { npBuffer = ''; }
   else if (k === '⌫') { npBuffer = npBuffer.slice(0, -1); }
   else if (k === '.') {
-    if (npMode === 'qty' || npMode === 'remise') return; // pas de décimales pour quantités et remises
+    if (npMode === 'remise') return;
     if (!npBuffer.includes('.')) npBuffer += '.';
   }
   else {
@@ -3125,7 +3368,7 @@ function updateNumpadDisplay() {
 
 function npApply() {
   if (npMode === 'qty') {
-    const qty = parseInt(npBuffer) || 0;
+    const qty = parseFloat(npBuffer) || 0;
     if (qty <= 0) {
       cart = cart.filter(i => i.product.id !== npSelectedId);
     } else {
@@ -3292,7 +3535,7 @@ function broadcastCart(type = 'cart') {
     type,
     company:  U?.company || '',
     phone:    U?.phone || '',
-    cart:     cart.map(i => ({ id: i.product.id, name: i.product.name, emoji: i.product.emoji || '🛍', price: i.product.price, qty: i.qty })),
+    cart:     cart.map(i => ({ id: i.product.id, name: i.product.name, emoji: i.product.emoji || '🛍', price: i.product.price, qty: i.qty, unit: i.product.unit || 'unité' })),
     totals:   t,
     loyalty:  payLoyCustomer ? { name: payLoyCustomer.name, points: payLoyCustomer.points } : null,
     note:     document.getElementById('note-input')?.value || '',
@@ -3454,7 +3697,7 @@ function renderClientCart(d) {
     <div class="cd-item">
       <div class="cd-item-emoji">${item.emoji}</div>
       <div class="cd-item-name">${esc(item.name)}</div>
-      <div class="cd-item-qty">× ${item.qty}</div>
+      <div class="cd-item-qty">${formatQty(item.qty, item.unit)}</div>
       <div class="cd-item-price">${fp(item.price * item.qty)}</div>
     </div>`).join('');
 
@@ -3587,7 +3830,7 @@ function confirmAction(title, msg, cb) {
   nb.addEventListener('click', () => { closeModal('modal-confirm'); cb(); });
   document.getElementById('modal-confirm').classList.remove('hidden');
 }
-document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); }));
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o && !['modal-onboarding', 'modal-welcome'].includes(o.id)) o.classList.add('hidden'); }));
 function fp(n) { return (Math.round(n * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
 function esc(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 function toast(msg, type = '') {
@@ -3601,7 +3844,7 @@ function toast(msg, type = '') {
 document.getElementById('discount-input')?.addEventListener('input', renderCart);
 document.getElementById('note-input')?.addEventListener('input', () => { broadcastCart(); });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => { if (!['modal-onboarding', 'modal-welcome'].includes(m.id)) m.classList.add('hidden'); });
   if (e.key === 'Enter' && !document.getElementById('view-auth').classList.contains('hidden')) {
     if (!document.getElementById('tab-login').classList.contains('hidden')) login(); else register();
   }
@@ -3610,8 +3853,8 @@ document.addEventListener('keydown', e => {
 // ═══════════════════════════════════════
 // AUTO-UPDATE CHECK
 // ═══════════════════════════════════════
-const CURRENT_VERSION = '4.2.0';
-const UPDATE_REPO = 'RP4031-FR/CristalCaisse';
+const CURRENT_VERSION = APP_VERSION;
+const UPDATE_REPO = 'RP4031-FR/CristalCaisse-web';
 const UPDATE_CHECK_URL = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`;
 
 function compareVersions(a, b) {
