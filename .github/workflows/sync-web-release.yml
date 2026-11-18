@@ -71,9 +71,10 @@ jobs:
           const fs=require('fs'), v=process.env.VERSION;
           const f='/tmp/CristalCaisse.html';
           let html=fs.readFileSync(f,'utf8');
-          const next=html.replace(/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/,(_,p)=>p+"'"+v+"'");
-          if(next===html) throw new Error("CURRENT_VERSION introuvable ou non modifiable");
-          fs.writeFileSync(f,next);
+          const pattern=/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/;
+          if(pattern.test(html)) html=html.replace(pattern,(_,p)=>p+"'"+v+"'");
+          else console.log("::notice::La source ne déclare pas CURRENT_VERSION ; le numéro de version du paquet Electron sera tout de même mis à jour.");
+          fs.writeFileSync(f,html);
           const p='desktop/package.json', pkg=JSON.parse(fs.readFileSync(p,'utf8'));
           pkg.version=v; pkg.build.publish={provider:'github',owner:'RP4031-FR',repo:'CristalCaisse-app'};
           fs.writeFileSync(p,JSON.stringify(pkg,null,2)+'\n');
