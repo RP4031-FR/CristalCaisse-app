@@ -35,7 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          RELEASE="$(curl -fsSL https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)" || {
+          RELEASE="$(curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 120 https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)" || {
             echo "::notice::Aucune Release web publiée."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -66,7 +66,7 @@ jobs:
             exit 0
           fi
 
-          curl -fsSL "$ASSET_URL" -o /tmp/CristalCaisse.html
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 180 "$ASSET_URL" -o /tmp/CristalCaisse.html
           VERSION="$VERSION" node <<'NODE'
           const fs=require('fs'), v=process.env.VERSION;
           const f='/tmp/CristalCaisse.html';
@@ -94,7 +94,218 @@ jobs:
           # même lorsque package.json porte déjà cette version.
           EXISTING="$(gh api "repos/RP4031-FR/CristalCaisse-app/releases/tags/v$VERSION" 2>/dev/null || true)"
           if [[ -n "$EXISTING" ]]; then
-            COMPLETE="$(python3 -c 'import json,sys; n=[x["name"].lower() for x in json.load(sys.stdin).get("assets",[])]; ok=[any(x.endswith(".exe") for x in n),any(x.endswith(".dmg") for x in n),any(x.endswith(".appimage") for x in n),any(x.endswith(".deb") for x in n)]; print(str(all(ok)).lower())' <<< "$EXISTING")"
+            COMPLETE="$(python3 -c 'import json,sys; n=[x["name"].lower() for x in json.load(sys.stdin).get("assets",[])]; dmgs=[x for x in n if x.endswith(".dmg")]; intel=any("arm64" not in x and "aarch64" not in x for x in dmgs); arm=any("arm64" in x or "aarch64" in x for x in dmgs); ok=[any(x.endswith(".exe") for x in n),intel,arm,any(x.endswith(".appimage") for x in n),any(x.endswith(".deb") for x in n)]; print(str(all(ok)).lower())' <<< "$EXISTING")"
+            if [[ "$COMPLETE" == "true" ]]; then
+              echo "::notice::La Release v$VERSION possède déjà tous ses installateurs."
+              echo "should_build=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::La Release v$VERSION est incomplète : nouvelle compilation."
+          fi
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win
+          - os: macos-latest
+            args: --mac --x64 --arm64
+          - os: ubuntu-latest
+            args: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Installer les dépendances
+        working-directory: desktop
+        run: npm ci
+      - name: Compiler sans publier
+        working-directory: desktop
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Déposer les fichiers compilés
+        uses: actions/upload-artifact@v4
+        with:
+          name: builds-${{ matrix.os }}
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: builds-*
+          path: dist
+          merge-multiple: true
+      - name: Vérifier les installateurs avant publication
+        run: |
+          set -euo pipefail
+          find dist -maxdepth 1 -type f -print
+          shopt -s nocaseglob
+          compgen -G "dist/*.exe" >/dev/null
+          compgen -G "dist/*.dmg" >/dev/null
+          compgen -G "dist/*.AppImage" >/dev/null
+          compgen -G "dist/*.deb" >/dev/null
+      - name: Créer ou compléter la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Ne transmettre à gh release que les fichiers : dist/* inclut aussi
+          # les dossiers linux-unpacked / mac et fait échouer l'upload.
+          mapfile -d '' FILES < <(find dist -maxdepth 1 -type f -print0)
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "::error::Aucun fichier compilé à publier."
+            exit 1
+          fi
+          if gh release view "$TAG" --repo RP4031-FR/CristalCaisse-app >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --repo RP4031-FR/CristalCaisse-app --clobber
+          else
+            gh release create "$TAG" "${FILES[@]}" --repo RP4031-FR/CristalCaisse-app --title "CristalCaisse $VERSION" --notes "Version $VERSION synchronisée depuis CristalCaisse-web."
+          fi
+      - name: Vérifier les fichiers publiés
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 - "$TAG" <<'PY'
+          import json, subprocess, sys
+          tag = sys.argv[1]
+          raw = subprocess.check_output([
+              "gh", "api", f"repos/RP4031-FR/CristalCaisse-app/releases/tags/{tag}"
+          ], text=True)
+          names = [a["name"].lower() for a in json.loads(raw).get("assets", [])]
+          dmgs = [n for n in names if n.endswith(".dmg")]
+          checks = {
+              "Windows (.exe)": any(n.endswith(".exe") for n in names),
+              "macOS Intel (.dmg)": any("arm64" not in n and "aarch64" not in n for n in dmgs),
+              "macOS ARM (.dmg)": any("arm64" in n or "aarch64" in n for n in dmgs),
+              "Linux (.AppImage)": any(n.endswith(".appimage") for n in names),
+              "Linux (.deb)": any(n.endswith(".deb") for n in names),
+          }
+          for label, ok in checks.items():
+              print(f'{"OK" if ok else "MANQUANT"} : {label}')
+          missing = [label for label, ok in checks.items() if not ok]
+          if missing:
+              raise SystemExit("Installateurs manquants : " + ", ".join(missing))
+          PY
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sync-web-release.yml"
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cristalcaisse-release-sync
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.sync.outputs.should_build }}
+      version: ${{ steps.sync.outputs.version }}
+      tag: ${{ steps.sync.outputs.tag }}
+      commit: ${{ steps.sync.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Récupérer et préparer la dernière Release web
+        id: sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RELEASE="$(curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 120 https://api.github.com/repos/RP4031-FR/CristalCaisse-web/releases/latest)" || {
+            echo "::notice::Aucune Release web publiée."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          TAG="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])' <<< "$RELEASE")"
+          RAW="${TAG#v}"
+          if [[ ! "$RAW" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+            echo "::error::Tag invalide : $TAG. Formats acceptés : vX.Y ou vX.Y.Z"
+            exit 1
+          fi
+          MAJOR_MINOR="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[4]:-0}"
+
+          export MAJOR_MINOR
+          ASSET_URL="$(python3 -c 'import json,sys,os; d=json.load(sys.stdin); a={x["name"]:x["browser_download_url"] for x in d.get("assets",[])}; print(a.get("CristalCaisse.html") or a.get("CristalCaisse."+os.environ["MAJOR_MINOR"]+".html") or "")' <<< "$RELEASE")"
+          if [[ -z "$ASSET_URL" ]]; then
+            echo "::error::Asset HTML absent de la Release $TAG (attendu : CristalCaisse.html ou CristalCaisse.$MAJOR_MINOR.html)."
+            exit 1
+          fi
+
+          CURRENT="$(node -p "require('./desktop/package.json').version")"
+          if ! VERSION="$VERSION" CURRENT="$CURRENT" node -e '
+            const p=s=>s.split(".").map(Number), a=p(process.env.VERSION), b=p(process.env.CURRENT);
+            for(let i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))process.exit((a[i]||0)>(b[i]||0)?0:1)}
+          '; then
+            echo "::notice::La version source $VERSION est antérieure à $CURRENT."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 180 "$ASSET_URL" -o /tmp/CristalCaisse.html
+          VERSION="$VERSION" node <<'NODE'
+          const fs=require('fs'), v=process.env.VERSION;
+          const f='/tmp/CristalCaisse.html';
+          let html=fs.readFileSync(f,'utf8');
+          const next=html.replace(/(const\s+CURRENT_VERSION\s*=\s*)['"][^'"]+['"]/,(_,p)=>p+"'"+v+"'");
+          if(next===html) throw new Error("CURRENT_VERSION introuvable ou non modifiable");
+          fs.writeFileSync(f,next);
+          const p='desktop/package.json', pkg=JSON.parse(fs.readFileSync(p,'utf8'));
+          pkg.version=v; pkg.build.publish={provider:'github',owner:'RP4031-FR',repo:'CristalCaisse-app'};
+          fs.writeFileSync(p,JSON.stringify(pkg,null,2)+'\n');
+          const l='desktop/package-lock.json';
+          if(fs.existsSync(l)){const lock=JSON.parse(fs.readFileSync(l,'utf8'));lock.version=v;if(lock.packages?.[''])lock.packages[''].version=v;fs.writeFileSync(l,JSON.stringify(lock,null,2)+'\n');}
+          NODE
+          cp /tmp/CristalCaisse.html desktop/index.html
+          git add desktop/index.html desktop/package.json desktop/package-lock.json
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Synchroniser CristalCaisse $VERSION depuis le dépôt web"
+            git push
+          fi
+          COMMIT="$(git rev-parse HEAD)"
+
+          # Recompiler si la Release n'existe pas encore ou si ses installateurs sont incomplets,
+          # même lorsque package.json porte déjà cette version.
+          EXISTING="$(gh api "repos/RP4031-FR/CristalCaisse-app/releases/tags/v$VERSION" 2>/dev/null || true)"
+          if [[ -n "$EXISTING" ]]; then
+            COMPLETE="$(python3 -c 'import json,sys; n=[x["name"].lower() for x in json.load(sys.stdin).get("assets",[])]; dmgs=[x for x in n if x.endswith(".dmg")]; intel=any("arm64" not in x and "aarch64" not in x for x in dmgs); arm=any("arm64" in x or "aarch64" in x for x in dmgs); ok=[any(x.endswith(".exe") for x in n),intel,arm,any(x.endswith(".appimage") for x in n),any(x.endswith(".deb") for x in n)]; print(str(all(ok)).lower())' <<< "$EXISTING")"
             if [[ "$COMPLETE" == "true" ]]; then
               echo "::notice::La Release v$VERSION possède déjà tous ses installateurs."
               echo "should_build=false" >> "$GITHUB_OUTPUT"
